@@ -53,7 +53,7 @@ class MylittlefishConnectivityQuestion_4Plugin: FlutterPlugin, MethodChannel.Met
 
         override fun onLost(network: Network) {
             mainHandler.post {
-                eventSink?.success(false)
+                eventSink?.success(false) 
             }
         }
     }
