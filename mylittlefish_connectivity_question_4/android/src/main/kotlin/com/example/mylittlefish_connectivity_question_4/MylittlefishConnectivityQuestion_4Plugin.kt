@@ -42,15 +42,17 @@ class MylittlefishConnectivityQuestion_4Plugin: FlutterPlugin, MethodChannel.Met
   }
 
   private fun startListeningNetworkState() {
+    val mainHandler = Handler(Looper.getMainLooper())
+
     val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            Handler(Looper.getMainLooper()).post {
+            mainHandler.post {
                 eventSink?.success(true)
             }
         }
 
         override fun onLost(network: Network) {
-            Handler(Looper.getMainLooper()).post {
+            mainHandler.post {
                 eventSink?.success(false)
             }
         }
