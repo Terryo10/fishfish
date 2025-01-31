@@ -16,7 +16,7 @@ class MyApp extends StatefulWidget {
 }
 
 class MyAppState extends State<MyApp> {
-  final _connectivity = MylittlefishConnectivityQuestion_4();
+  // final _connectivity = MylittlefishConnectivityQuestion_4();
   String _platformVersion = 'Unknown';
   bool _hasConnectivity = false;
   late StreamSubscription<bool> _connectivitySubscription;
@@ -24,19 +24,19 @@ class MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _initPlatformState();
-    _checkConnectivity();
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((hasConnectivity) {
-      setState(() {
-        _hasConnectivity = hasConnectivity;
-      });
-    });
+    // _initPlatformState();
+    // _checkConnectivity();
+    // _connectivitySubscription = _connectivity.onConnectivityChanged.listen((hasConnectivity) {
+    //   setState(() {
+    //     _hasConnectivity = hasConnectivity;
+    //   });
+    // });
   }
 
   Future<void> _initPlatformState() async {
     String platformVersion;
     try {
-      platformVersion = await _connectivity.getPlatformVersion() ?? 'Unknown platform version';
+      // platformVersion = await _connectivity.getPlatformVersion() ?? 'Unknown platform version';
     } catch (e) {
       platformVersion = 'Failed to get platform version.';
     }
@@ -44,14 +44,14 @@ class MyAppState extends State<MyApp> {
     if (!mounted) return;
 
     setState(() {
-      _platformVersion = platformVersion;
+      // _platformVersion = platformVersion;
     });
   }
 
   Future<void> _checkConnectivity() async {
-    final hasConnectivity = await _connectivity.hasConnectivity();
+    // final hasConnectivity = await _connectivity.hasConnectivity();
     setState(() {
-      _hasConnectivity = hasConnectivity;
+      // _hasConnectivity = hasConnectivity;
     });
   }
 
