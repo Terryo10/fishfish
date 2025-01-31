@@ -2,6 +2,8 @@ package com.example.mylittlefish_connectivity_question_4
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.os.Handler
+import android.os.Looper
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
@@ -40,13 +42,19 @@ class MylittlefishConnectivityQuestion_4Plugin: FlutterPlugin, MethodChannel.Met
   }
 
   private fun startListeningNetworkState() {
+    val mainHandler = Handler(Looper.getMainLooper())
+    
     val networkCallback = object : ConnectivityManager.NetworkCallback() {
       override fun onAvailable(network: Network) {
-        eventSink?.success(true)
+        mainHandler.post {
+          eventSink?.success(true)
+        }
       }
 
       override fun onLost(network: Network) {
-        eventSink?.success(false)
+        mainHandler.post {
+          eventSink?.success(false)
+        }
       }
     }
 

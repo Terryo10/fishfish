@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'mylittlefish_connectivity_question_4_platform_interface.dart';
 
+
 class MethodChannelMylittlefishConnectivityQuestion_4 extends MylittlefishConnectivityQuestion_4Platform {
   @visibleForTesting
   final methodChannel = const MethodChannel('mylittlefish_connectivity_question_4');
@@ -12,6 +13,7 @@ class MethodChannelMylittlefishConnectivityQuestion_4 extends MylittlefishConnec
 
   Stream<bool>? _onConnectivityChanged;
 
+  // This is fine in the platform interface, but we must implement it here
   @override
   Future<String?> getPlatformVersion() async {
     final version = await methodChannel.invokeMethod<String>('getPlatformVersion');
@@ -20,13 +22,25 @@ class MethodChannelMylittlefishConnectivityQuestion_4 extends MylittlefishConnec
 
   @override
   Future<bool> hasConnectivity() async {
-    final bool hasConnectivity = await methodChannel.invokeMethod('hasConnectivity');
-    return hasConnectivity;
+    try {
+      final result = await methodChannel.invokeMethod<bool>('hasConnectivity');
+      return result ?? false;
+    } catch (e) {
+      print('Error checking connectivity: $e');
+      return false;
+    }
   }
 
   @override
   Stream<bool> get onConnectivityChanged {
-    _onConnectivityChanged ??= eventChannel.receiveBroadcastStream().map((dynamic event) => event as bool);
+    _onConnectivityChanged ??= eventChannel.receiveBroadcastStream().map((dynamic event) {
+      try {
+        return event as bool;
+      } catch (e) {
+        print('Error in connectivity stream: $e');
+        return false;
+      }
+    });
     return _onConnectivityChanged!;
   }
 }
