@@ -1,35 +1,78 @@
 package com.example.mylittlefish_connectivity_question_4
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import androidx.annotation.NonNull
-
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 
-/** MylittlefishConnectivityQuestion_4Plugin */
-class MylittlefishConnectivityQuestion_4Plugin: FlutterPlugin, MethodCallHandler {
-  /// The MethodChannel that will the communication between Flutter and native Android
-  ///
-  /// This local reference serves to register the plugin with the Flutter Engine and unregister it
-  /// when the Flutter Engine is detached from the Activity
-  private lateinit var channel : MethodChannel
+class MylittlefishConnectivityQuestion_4Plugin: FlutterPlugin, MethodChannel.MethodCallHandler {
+  private lateinit var methodChannel: MethodChannel
+  private lateinit var eventChannel: EventChannel
+  private lateinit var context: Context
+  private var eventSink: EventChannel.EventSink? = null
+  private lateinit var connectivityManager: ConnectivityManager
 
-  override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-    channel = MethodChannel(flutterPluginBinding.binaryMessenger, "mylittlefish_connectivity_question_4")
-    channel.setMethodCallHandler(this)
+  override fun onAttachedToEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+    context = binding.applicationContext
+    methodChannel = MethodChannel(binding.binaryMessenger, "mylittlefish_connectivity_question_4")
+    methodChannel.setMethodCallHandler(this)
+    
+    eventChannel = EventChannel(binding.binaryMessenger, "mylittlefish_connectivity_question_4/connectivity_status")
+    eventChannel.setStreamHandler(object : EventChannel.StreamHandler {
+      override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
+        eventSink = events
+        startListeningNetworkState()
+      }
+
+      override fun onCancel(arguments: Any?) {
+        eventSink = null
+      }
+    })
+    
+    connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
   }
 
-  override fun onMethodCall(call: MethodCall, result: Result) {
-    if (call.method == "getPlatformVersion") {
-      result.success("Android ${android.os.Build.VERSION.RELEASE}")
-    } else {
-      result.notImplemented()
+  private fun startListeningNetworkState() {
+    val networkCallback = object : ConnectivityManager.NetworkCallback() {
+      override fun onAvailable(network: Network) {
+        eventSink?.success(true)
+      }
+
+      override fun onLost(network: Network) {
+        eventSink?.success(false)
+      }
+    }
+
+    val networkRequest = NetworkRequest.Builder()
+      .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+      .build()
+
+    connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
+  }
+
+  override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
+    when (call.method) {
+      "getPlatformVersion" -> {
+        result.success("Android ${android.os.Build.VERSION.RELEASE}")
+      }
+      "hasConnectivity" -> {
+        val network = connectivityManager.activeNetwork
+        val capabilities = connectivityManager.getNetworkCapabilities(network)
+        result.success(capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true)
+      }
+      else -> result.notImplemented()
     }
   }
 
-  override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-    channel.setMethodCallHandler(null)
+  override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+    methodChannel.setMethodCallHandler(null)
+    eventChannel.setStreamHandler(null)
   }
 }
