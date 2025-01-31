@@ -1,126 +1,130 @@
 package com.example.mylittlefish_connectivity_question_4
 
-import android.app.Activity
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.os.Handler
+import android.os.Looper
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
-import io.flutter.embedding.engine.plugins.activity.ActivityAware
-import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.Result
 
-class MylittlefishConnectivityQuestion_4Plugin: FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware {
-  private lateinit var methodChannel: MethodChannel
-  private lateinit var eventChannel: EventChannel
-  private var activity: Activity? = null
-  private var eventSink: EventChannel.EventSink? = null
-  private lateinit var connectivityManager: ConnectivityManager
-  private var networkCallback: ConnectivityManager.NetworkCallback? = null
+class MylittlefishConnectivityQuestion_4Plugin: FlutterPlugin, MethodChannel.MethodCallHandler {
+    private lateinit var methodChannel: MethodChannel
+    private lateinit var eventChannel: EventChannel
+    private lateinit var context: Context
+    private var eventSink: EventChannel.EventSink? = null
+    private lateinit var connectivityManager: ConnectivityManager
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private val mainThreadHandler = Handler(Looper.getMainLooper())
 
-  override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-    methodChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "mylittlefish_connectivity_question_4")
-    methodChannel.setMethodCallHandler(this)
-    
-    eventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "mylittlefish_connectivity_question_4/connectivity_status")
-    eventChannel.setStreamHandler(ConnectivityStreamHandler())
-  }
+    override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        context = flutterPluginBinding.applicationContext
+        connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        
+        mainThreadHandler.post {
+            methodChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "mylittlefish_connectivity_question_4")
+            eventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "mylittlefish_connectivity_question_4/connectivity_status")
+            
+            methodChannel.setMethodCallHandler(this)
+            eventChannel.setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
+                    eventSink = events
+                    setupNetworkCallback()
+                }
 
-  override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-    activity = binding.activity
-    connectivityManager = activity?.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-  }
-
-  override fun onDetachedFromActivityForConfigChanges() {
-    activity = null
-  }
-
-  override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-    activity = binding.activity
-  }
-
-  override fun onDetachedFromActivity() {
-    activity = null
-  }
-
-  override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
-    when (call.method) {
-      "getPlatformVersion" -> {
-        result.success("Android ${android.os.Build.VERSION.RELEASE}")
-      }
-      "hasConnectivity" -> {
-        activity?.runOnUiThread {
-          try {
-            val network = connectivityManager.activeNetwork
-            val capabilities = connectivityManager.getNetworkCapabilities(network)
-            result.success(capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true)
-          } catch (e: Exception) {
-            result.error("CONNECTIVITY_ERROR", "Error checking connectivity", e.message)
-          }
+                override fun onCancel(arguments: Any?) {
+                    removeNetworkCallback()
+                    eventSink = null
+                }
+            })
         }
-      }
-      else -> result.notImplemented()
-    }
-  }
-
-  override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
-    methodChannel.setMethodCallHandler(null)
-    eventChannel.setStreamHandler(null)
-  }
-
-  private inner class ConnectivityStreamHandler : EventChannel.StreamHandler {
-    override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
-      eventSink = events
-      registerNetworkCallback()
     }
 
-    override fun onCancel(arguments: Any?) {
-      unregisterNetworkCallback()
-      eventSink = null
-    }
-  }
-
-  private fun registerNetworkCallback() {
-    if (networkCallback != null) return
-
-    networkCallback = object : ConnectivityManager.NetworkCallback() {
-      override fun onAvailable(network: Network) {
-        activity?.runOnUiThread {
-          eventSink?.success(true)
+    private fun setupNetworkCallback() {
+        if (networkCallback != null) {
+            return
         }
-      }
 
-      override fun onLost(network: Network) {
-        activity?.runOnUiThread {
-          eventSink?.success(false)
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                mainThreadHandler.post {
+                    try {
+                        eventSink?.success(true)
+                    } catch (e: Exception) {
+                        print("Error sending network available event: ${e.message}")
+                    }
+                }
+            }
+
+            override fun onLost(network: Network) {
+                mainThreadHandler.post {
+                    try {
+                        eventSink?.success(false)
+                    } catch (e: Exception) {
+                        print("Error sending network lost event: ${e.message}")
+                    }
+                }
+            }
         }
-      }
+
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        mainThreadHandler.post {
+            try {
+                connectivityManager.registerNetworkCallback(request, networkCallback!!)
+            } catch (e: Exception) {
+                print("Error registering network callback: ${e.message}")
+            }
+        }
     }
 
-    val networkRequest = NetworkRequest.Builder()
-      .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-      .build()
-
-    try {
-      connectivityManager.registerNetworkCallback(networkRequest, networkCallback!!)
-    } catch (e: Exception) {
-      // Handle registration error
+    private fun removeNetworkCallback() {
+        networkCallback?.let { callback ->
+            mainThreadHandler.post {
+                try {
+                    connectivityManager.unregisterNetworkCallback(callback)
+                } catch (e: Exception) {
+                    print("Error unregistering network callback: ${e.message}")
+                }
+            }
+            networkCallback = null
+        }
     }
-  }
 
-  private fun unregisterNetworkCallback() {
-    try {
-      networkCallback?.let { callback ->
-        connectivityManager.unregisterNetworkCallback(callback)
-        networkCallback = null
-      }
-    } catch (e: Exception) {
-      // Handle unregistration error
+    override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
+        when (call.method) {
+            "getPlatformVersion" -> {
+                result.success("Android ${android.os.Build.VERSION.RELEASE}")
+            }
+            "hasConnectivity" -> {
+                mainThreadHandler.post {
+                    try {
+                        val network = connectivityManager.activeNetwork
+                        val capabilities = connectivityManager.getNetworkCapabilities(network)
+                        val hasInternet = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+                        result.success(hasInternet)
+                    } catch (e: Exception) {
+                        result.error("CONNECTIVITY_ERROR", "Error checking connectivity", e.message)
+                    }
+                }
+            }
+            else -> result.notImplemented()
+        }
     }
-  }
+
+    override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+        mainThreadHandler.post {
+            methodChannel.setMethodCallHandler(null)
+            eventChannel.setStreamHandler(null)
+        }
+        removeNetworkCallback()
+    }
 }
