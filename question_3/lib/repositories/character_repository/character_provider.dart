@@ -18,7 +18,7 @@ class CharacterProvider {
 
       HttpClientRequest request = await client.getUrl(uri);
       HttpClientResponse response = await request.close();
-      
+
       if (response.statusCode == 200) {
         String responseBody = await response.transform(utf8.decoder).join();
         return jsonDecode(responseBody);

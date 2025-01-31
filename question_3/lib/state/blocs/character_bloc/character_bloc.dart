@@ -43,8 +43,6 @@ class CharacterBloc extends Bloc<CharacterEvent, CharacterState> {
         try {
           final nextPage = currentState.currentPage + 1;
           final response = await repository.getCharacters(nextPage);
-          print(response);
-          
           emit(CharactersLoaded(
             characters :[...currentState.characters, ...?response.results],
             response.info?.next == null,
@@ -61,6 +59,6 @@ class CharacterBloc extends Bloc<CharacterEvent, CharacterState> {
     SelectCharacter event,
     Emitter<CharacterState> emit,
   ) async {
-    // Handle character selection
+    //TODO: lol
   }
 }
