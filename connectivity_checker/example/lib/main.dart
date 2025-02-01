@@ -1,57 +1,84 @@
 import 'package:flutter/material.dart';
 import 'package:connectivity_checker/connectivity_checker.dart';
+import 'dart:async';
 
 void main() {
-  // Ensure Flutter binding is initialized
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize the plugin
-  final connectivityChecker = ConnectivityChecker();
-
-  runApp(MyApp(connectivityChecker: connectivityChecker));
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
-  final ConnectivityChecker connectivityChecker;
-
-  const MyApp({super.key, required this.connectivityChecker});
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
+  final ConnectivityChecker _connectivityChecker = ConnectivityChecker();
+  final _connectivityController = StreamController<bool>.broadcast();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkInitialConnectivity();
+    
+    // Listen to connectivity changes from the checker
+    _connectivityChecker.onConnectivityChanged.listen((isConnected) {
+      _connectivityController.add(isConnected);
+    });
+  }
+
+  Future<void> _checkInitialConnectivity() async {
+    final isConnected = await _connectivityChecker.checkConnectivity();
+    _connectivityController.add(isConnected);
+    print('Initial Connectivity: $isConnected');
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(title: Text('Connectivity Checker')),
+        appBar: AppBar(title: const Text('Connectivity Checker')),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               StreamBuilder<bool>(
-                stream: widget.connectivityChecker.onConnectivityChanged,
+                stream: _connectivityController.stream,
                 builder: (context, snapshot) {
+                  print("StreamBuilder snapshot: ${snapshot.connectionState}, data: ${snapshot.data}");
                   final isConnected = snapshot.data ?? false;
-                  print('StreamBuilder rebuilt with connectivity: $isConnected'); // Debug print
-                  return Text('Connected: $isConnected');
+                  return Text(
+                    'Connected: $isConnected',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isConnected ? Colors.green : Colors.red,
+                    ),
+                  );
                 },
               ),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
-                  final isConnected = await widget.connectivityChecker.checkConnectivity();
+                  final isConnected = await _connectivityChecker.checkConnectivity();
+                  _connectivityController.add(isConnected); // Add the new value to the stream
                   print('Is Connected: $isConnected');
-                  setState(() {
-                    
-                  });
                 },
-                child: Text('Check Connectivity'),
+                child: const Text('Check Connectivity'),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _connectivityChecker.dispose();
+    _connectivityController.close();
+    super.dispose();
   }
 }

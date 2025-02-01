@@ -38,7 +38,11 @@ class ConnectivityCheckerPlugin : FlutterPlugin, MethodCallHandler, EventChannel
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
         eventSink = events
-        registerNetworkCallback()
+
+        val isConnected = isConnected()
+        events?.success(isConnected)
+
+        registerNetworkCallback()     
     }
 
     override fun onCancel(arguments: Any?) {
@@ -69,15 +73,5 @@ class ConnectivityCheckerPlugin : FlutterPlugin, MethodCallHandler, EventChannel
 
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
 
-    }
-
-    override fun onAvailable(network: Network) {
-        super.onAvailable(network)
-        eventSink?.success(true) // Emit true when network is available
-    }
-    
-    override fun onLost(network: Network) {
-        super.onLost(network)
-        eventSink?.success(false) // Emit false when network is lost
     }
 }
