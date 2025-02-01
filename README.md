@@ -171,15 +171,6 @@ dependencies:
 4. Run `flutter pub get` to install dependencies
 5. Run `flutter run` to start the application
 
-## Testing
-
-Each application contains its own test suite. To run tests:
-
-```bash
-cd question_X  # Replace X with the question number
-flutter test
-```
-
 ## Architecture Decisions
 
 - **Question 1 & 2**: Demonstrate different state management approaches while maintaining clean architecture principles
